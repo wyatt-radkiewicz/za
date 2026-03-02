@@ -160,7 +160,7 @@ pub const Args = struct {
                 const LinkerField = std.meta.FieldEnum(Linker);
                 const fields = std.meta.fields(Linker);
                 inline for (fields, 0..) |linker_field, field_idx| {
-                    try writer.print("\t{s}: {s}, // {s}{s}", .{
+                    try writer.print("    {s}: {s}, // {s}{s}", .{
                         linker_field.name,
                         @typeName(linker_field.type),
                         Linker.fieldDesc(

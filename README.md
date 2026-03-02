@@ -97,8 +97,8 @@ Here's the options for the linker script generator (as the type `za.Linker.Args`
 ```zig
 main_script: ?Build.LazyPath, // What is the main script used for the linker?
 script: Linker, // Linker script config
-	code_segment: ?Linker.Region, // Where are the text+rodata segments automatically put?
-	data_segment: ?Linker.Region, // Where are the data+bss segments automatically put?
+    code_segment: ?Linker.Region, // Where are the text+rodata segments automatically put?
+    data_segment: ?Linker.Region, // Where are the data+bss segments automatically put?
 output: []const u8, // Name of the output
 ```
 

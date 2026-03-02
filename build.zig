@@ -1,9 +1,9 @@
 const std = @import("std");
 
-pub const Linker = @import("src/build/Linker.zig");
-const Options = @import("src/build/Options.zig");
+pub const Linker = @import("tools/Linker.zig");
+const Options = @import("tools/Options.zig");
 const Build = std.Build;
-const test_cases: []const TestCase = @import("src/test/cases.zon");
+const test_cases: []const TestCase = @import("tests/cases.zon");
 
 /// Data pertaining to a test case
 const TestCase = struct {
@@ -21,14 +21,14 @@ const TestCase = struct {
     ) *Build.Step.Compile {
         // Create the test module
         const test_mod = b.createModule(.{
-            .root_source_file = b.path("src/test/runner.zig"),
+            .root_source_file = b.path("tests/runner.zig"),
             .target = target,
             .optimize = optimize,
             .omit_frame_pointer = options.omit_frame_pointer,
         });
         test_mod.addImport("za", za_mod);
         test_mod.addAnonymousImport("test_case", .{
-            .root_source_file = b.path(b.pathJoin(&.{ "src/test/cases/", this.path })),
+            .root_source_file = b.path(b.pathJoin(&.{ "tests/cases/", this.path })),
             .target = target,
             .optimize = optimize,
             .omit_frame_pointer = options.omit_frame_pointer,
@@ -70,7 +70,7 @@ pub const linker_script = struct {
     ) *Build.Step.Compile {
         // Create the module
         const linker_mod = b.createModule(.{
-            .root_source_file = b.path("src/build/Linker.zig"),
+            .root_source_file = b.path("tools/Linker.zig"),
             .target = target,
             .optimize = optimize,
         });
@@ -101,7 +101,7 @@ pub fn build(b: *Build) !void {
 
     // Main hal module
     const za_mod = b.addModule("za", .{
-        .root_source_file = b.path("src/lib/root.zig"),
+        .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
         .omit_frame_pointer = options.omit_frame_pointer,
@@ -133,13 +133,12 @@ pub fn build(b: *Build) !void {
     const fmt_step = b.step("fmt", "Check code formatting");
     fmt_step.dependOn(&b.addFmt(.{
         .check = true,
-        .paths = &.{ "src/", "build.zig", "build.zig.zon" },
-        .exclude_paths = &.{"src/linker/"},
+        .paths = &.{ "src/", "tests/", "tools/", "example/", "build.zig", "build.zig.zon" },
     }).step);
 
     // Create readme generator
     const readme_mod = b.createModule(.{
-        .root_source_file = b.path("src/build/readme.zig"),
+        .root_source_file = b.path("tools/readme.zig"),
         .target = native_target,
         .optimize = .ReleaseSafe,
     });

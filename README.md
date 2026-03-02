@@ -95,7 +95,7 @@ omit_frame_pointer: bool, // Omit frame pointer setup (default: false)
 ```
 #### Using the Linker Script Generator
 Here's the options for the linker script generator
-(as the type [za.Linker.Args](src/build/Linker.zig#L124-L175) when including the build.zig dependency):
+(as the type [za.Linker.Args](tools/Linker.zig#L124-L175) when including the [build.zig](build.zig) dependency):
 ```zig
 main_script: ?Build.LazyPath, // What is the main script used for the linker?
 script: Linker, // Linker script config

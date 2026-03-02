@@ -33,7 +33,7 @@ Here are the dependency options:
 ```
 #### Using the Linker Script Generator
 Here's the options for the linker script generator
-(as the type [za.Linker.Args](src/build/Linker.zig#L124-L175) when including the build.zig dependency):
+(as the type [za.Linker.Args](tools/Linker.zig#L124-L175) when including the [build.zig](build.zig) dependency):
 ```zig
 {[linker_args]f}
 ```

@@ -6,9 +6,9 @@
     - [Fetching the Dependency](#fetching-the-dependency)
     - [Importing the Module](#importing-the-module)
     - [Using the Linker Script Generator](#using-the-linker-script-generator)
-    - [Generating README.md](#generating-readmemd)
   - [Choosing a Target Triple](#choosing-a-target-triple)
 - [Testing the HAL](#testing-the-hal)
+- [Generating README.md](#generating-readmemd)
 
 ## Purpose
 - This library is meant to help write bare metal code for *ARM Cortex-M* cpus and
@@ -104,14 +104,6 @@ script: Linker, // Linker script config
 output: []const u8, // Name of the output
 ```
 
-#### Generating README.md
-To generate this README.md run this in the "za" working directory:
-```bash
-zig build readme -p .
-```
-* Note: `-p .` tells zig to put the output prefix
-  directory in the current working directory for this invocation
-
 ### Choosing a Target Triple
 When using the HAL, a suitable target architecture must be chosen. The hal currently supports
 ARMv6 and ARMv7 compatible CPUs. In the case of zig you can pick a target triple like this:
@@ -128,3 +120,11 @@ correctness with renode. For now *tests can be built with*:
 ```bash
 zig build test -Dtarget=<your target triple here> -Dcpu=<your cpu model here>
 ```
+
+## Generating README.md
+To generate this README.md run this in the "za" working directory:
+```bash
+zig build readme -p .
+```
+* Note: `-p .` tells zig to put the output prefix
+  directory in the current working directory for this invocation

@@ -6,7 +6,7 @@
     .dependencies = .{
         .za = .{
             .url = "/Users/wyatt/Developer/zig/za",
-            .hash = "za-0.0.0-OZCnhujQAADRNJAVqwERnI-4GSlKiRl_-iu8Ym-rf2R4",
+            .hash = "za-0.0.0-OZCnhurQAAD1yw5a2Qq82E1oAgC6WcIeJdEDq8Oybiv-",
         },
     },
     .paths = .{

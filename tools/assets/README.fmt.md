@@ -64,7 +64,7 @@ zig build -Dcpu=
 Test case executables are generated currently, but work still needs to be done to verify their
 correctness with renode. For now *tests can be built with*:
 ```bash
-zig build test -Dtarget=<your target triple here> -Dcpu=<your cpu model here>
+zig build tests -Dtarget=<your target triple here> -Dcpu=<your cpu model here>
 ```
 
 ## Other Build Steps

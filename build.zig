@@ -111,7 +111,7 @@ pub fn build(b: *Build) !void {
     const linker_exe = linker_script.init(b, native_target, .ReleaseSafe);
 
     // Add tests step
-    const tests_step = b.step("test", "Run tests (check README.md)");
+    const tests_step = b.step("tests", "Run tests (check README.md)");
 
     // Build each test as seperate executable
     for (test_cases) |test_case| {

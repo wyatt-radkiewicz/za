@@ -22,7 +22,7 @@ To add the HAL to your Zig project, run this in your project directory:
 zig fetch --save git+https://github.com/wyatt-radkiewicz/za.git
 ```
 #### Importing the Module
-In your `build.zig` use `std.Build.dependency(b, name, args)` to access the hal dependency.
+In your [build.zig](example/build.zig) use `std.Build.dependency(b, name, args)` to access the hal dependency.
 Here's an example:
 ```zig
 {[example_build_zig]s}
@@ -32,7 +32,8 @@ Here are the dependency options:
 {[dep_options]f}
 ```
 #### Using the Linker Script Generator
-Here's the options for the linker script generator (as the type `za.Linker.Args`):
+Here's the options for the linker script generator
+(as the type [za.Linker.Args](src/build/Linker.zig#L124-L175) when including the build.zig dependency):
 ```zig
 {[linker_args]f}
 ```

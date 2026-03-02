@@ -3,6 +3,54 @@ const std = @import("std");
 pub const Linker = @import("src/build/Linker.zig");
 const Options = @import("src/build/Options.zig");
 const Build = std.Build;
+const test_cases: []const TestCase = @import("src/test/cases.zon");
+
+/// Data pertaining to a test case
+const TestCase = struct {
+    path: []const u8,
+
+    /// Build the test case
+    fn build(
+        this: @This(),
+        b: *Build,
+        target: Build.ResolvedTarget,
+        optimize: std.builtin.OptimizeMode,
+        options: Options,
+        za_mod: *Build.Module,
+        linker_exe: *Build.Step.Compile,
+    ) *Build.Step.Compile {
+        // Create the test module
+        const test_mod = b.createModule(.{
+            .root_source_file = b.path("src/test/runner.zig"),
+            .target = target,
+            .optimize = optimize,
+            .omit_frame_pointer = options.omit_frame_pointer,
+        });
+        test_mod.addImport("za", za_mod);
+        test_mod.addAnonymousImport("test_case", .{
+            .root_source_file = b.path(b.pathJoin(&.{ "src/test/cases/", this.path })),
+            .target = target,
+            .optimize = optimize,
+            .omit_frame_pointer = options.omit_frame_pointer,
+            .imports = &.{.{ .name = "za", .module = za_mod }},
+        });
+
+        // Build the test module and executable
+        const test_exe = b.addExecutable(.{
+            .name = b.fmt("test-{s}", .{std.fs.path.stem(this.path)}),
+            .root_module = test_mod,
+        });
+        const linker_run = b.addRunArtifact(linker_exe);
+        test_exe.setLinkerScript(Linker.Args.add(.{
+            .script = .{
+                .code_section = .code,
+                .data_section = .sram,
+            },
+            .output = b.fmt("test-{s}.ld", .{std.fs.path.stem(this.path)}),
+        }, linker_run));
+        return test_exe;
+    }
+};
 
 /// Linker script namespace
 pub const linker_script = struct {
@@ -17,7 +65,7 @@ pub const linker_script = struct {
     /// Returns the linker executable
     fn init(
         b: *Build,
-        target: std.Build.ResolvedTarget,
+        target: Build.ResolvedTarget,
         optimize: std.builtin.OptimizeMode,
     ) *Build.Step.Compile {
         // Create the module
@@ -66,43 +114,9 @@ pub fn build(b: *Build) !void {
     const tests_step = b.step("test", "Run tests (check README.md)");
 
     // Build each test as seperate executable
-    var tests_dir = try std.fs.cwd().openDir(b.pathFromRoot("src/test/cases/"), .{ .iterate = true });
-    defer tests_dir.close();
-    var tests_dir_iter = tests_dir.iterate();
-    while (try tests_dir_iter.next()) |entry| {
-        if (entry.kind != .file or !std.mem.eql(u8, ".zig", std.fs.path.extension(entry.name))) {
-            continue;
-        }
-
-        // Create the test module
-        const test_mod = b.createModule(.{
-            .root_source_file = b.path("src/test/runner.zig"),
-            .target = target,
-            .optimize = optimize,
-            .omit_frame_pointer = options.omit_frame_pointer,
-        });
-        test_mod.addImport("za", za_mod);
-        test_mod.addAnonymousImport("test_case", .{
-            .root_source_file = b.path(b.pathJoin(&.{ "src/test/cases/", entry.name })),
-            .target = target,
-            .optimize = optimize,
-            .omit_frame_pointer = options.omit_frame_pointer,
-            .imports = &.{.{ .name = "za", .module = za_mod }},
-        });
-
-        // Build the test module and executable
-        const test_exe = b.addExecutable(.{
-            .name = b.fmt("test-{s}", .{std.fs.path.stem(entry.name)}),
-            .root_module = test_mod,
-        });
-        const linker_run = b.addRunArtifact(linker_exe);
-        test_exe.setLinkerScript(Linker.Args.add(.{
-            .script = .{
-                .code_section = .code,
-                .data_section = .sram,
-            },
-            .output = b.fmt("test-{s}.ld", .{std.fs.path.stem(entry.name)}),
-        }, linker_run));
+    for (test_cases) |test_case| {
+        // Build the test
+        const test_exe = test_case.build(b, target, optimize, options, za_mod, linker_exe);
 
         // Add it to the test step
         tests_step.dependOn(&b.addInstallArtifact(test_exe, .{}).step);

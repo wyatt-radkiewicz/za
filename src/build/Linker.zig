@@ -1,14 +1,20 @@
 //! Configuration for generating a linker script
 const std = @import("std");
 
-/// Where are the text+rodata segments automatically put?
-code_segment: ?Region = null,
+/// Where are the text+rodata sections automatically put?
+code_section: ?Region = null,
 
-/// Where are the data+bss segments automatically put?
-data_segment: ?Region = null,
+/// Where are the data+bss sections automatically put?
+data_section: ?Region = null,
 
 /// Linker script
 const Linker = @This();
+
+/// Assets for linker generator
+const assets = struct {
+    const code_sections = @embedFile("assets/code_sections.fmt.ld");
+    const data_sections = @embedFile("assets/data_sections.fmt.ld");
+};
 
 /// Different memory regions in armv6/armv7
 pub const Region = enum {
@@ -60,63 +66,21 @@ pub fn format(this: Linker, writer: *std.io.Writer) std.io.Writer.Error!void {
     try writer.print("}}\n", .{});
 
     // Write in the code region (if needed)
-    if (this.code_segment) |region| {
-        try writer.print(
-            \\
-            \\SECTIONS {{
-            \\  .vectors : {{
-            \\    *(.vectors)
-            \\  }} >{[region]s}
-            \\
-            \\  .text : {{
-            \\    *(.text*)
-            \\  }} >{[region]s}
-            \\
-            \\  .exidx : {{
-            \\    *(*exidx*)
-            \\  }} >{[region]s}
-            \\
-            \\  .extab : {{
-            \\    *(*extab*)
-            \\  }} >{[region]s}
-            \\
-            \\  .rodata : {{
-            \\    *(.rodata*)
-            \\    __data_start = .;
-            \\  }} >{[region]s}
-            \\
-            \\}}
-            \\
-        , .{ .region = region.name() });
+    if (this.code_section) |region| {
+        try writer.print(assets.code_sections, .{ .region = region.name() });
     }
 
     // Write in the data region (if needed)
-    if (this.data_segment) |region| {
-        try writer.print(
-            \\
-            \\SECTIONS {{
-            \\  .data : AT(__data_start) {{
-            \\    __data_dest = .;
-            \\    *(.data*)
-            \\  }} >{[region]s}
-            \\  __data_end = __data_start + SIZEOF(.data);
-            \\
-            \\  .bss (NOLOAD) : {{
-            \\    __bss_start = .;
-            \\    *(.bss*)
-            \\    __bss_end = .;
-            \\  }} >{[region]s}
-            \\}}
-            \\
-        , .{ .region = region.name() });
+    if (this.data_section) |region| {
+        try writer.print(assets.data_sections, .{ .region = region.name() });
     }
 }
 
 /// Gets the description for a linker field
 pub fn fieldDesc(field: std.meta.FieldEnum(Linker)) []const u8 {
     return switch (field) {
-        .code_segment => "Where are the text+rodata segments automatically put?",
-        .data_segment => "Where are the data+bss segments automatically put?",
+        .code_section => "Where are the text+rodata sections automatically put?",
+        .data_section => "Where are the data+bss sections automatically put?",
     };
 }
 
@@ -139,12 +103,12 @@ pub const Args = struct {
             step.addArg("--main_script");
             step.addFileArg(path);
         }
-        if (this.script.code_segment) |region| {
-            step.addArg("--code_segment");
+        if (this.script.code_section) |region| {
+            step.addArg("--code_section");
             step.addArg(@tagName(region));
         }
-        if (this.script.data_segment) |region| {
-            step.addArg("--data_segment");
+        if (this.script.data_section) |region| {
+            step.addArg("--data_section");
             step.addArg(@tagName(region));
         }
         return step.addOutputFileArg(this.output);
@@ -186,8 +150,8 @@ fn usage(stdout: *std.io.Writer, args: []const []const u8) void {
         \\
         \\options:
         \\\t--main_script <path>
-        \\\t--code_segment <region>
-        \\\t--data_segment <region>
+        \\\t--code_section <region>
+        \\\t--data_section <region>
         \\
         \\region:
     , .{args[0]}) catch return;
@@ -227,24 +191,24 @@ pub fn main() !void {
                 arg += 1;
                 main_script = args[arg];
             }
-        } else if (std.mem.eql(u8, "--code_segment", args[arg])) {
+        } else if (std.mem.eql(u8, "--code_section", args[arg])) {
             if (arg + 1 == args.len) {
                 return error.ExpectedArgument;
-            } else if (linker.code_segment != null) {
+            } else if (linker.code_section != null) {
                 return error.RepeatedArgument;
             } else {
                 arg += 1;
-                linker.code_segment = std.meta.stringToEnum(Region, args[arg]) orelse
+                linker.code_section = std.meta.stringToEnum(Region, args[arg]) orelse
                     return error.InvalidRegion;
             }
-        } else if (std.mem.eql(u8, "--data_segment", args[arg])) {
+        } else if (std.mem.eql(u8, "--data_section", args[arg])) {
             if (arg + 1 == args.len) {
                 return error.ExpectedArgument;
-            } else if (linker.data_segment != null) {
+            } else if (linker.data_section != null) {
                 return error.RepeatedArgument;
             } else {
                 arg += 1;
-                linker.data_segment = std.meta.stringToEnum(Region, args[arg]) orelse
+                linker.data_section = std.meta.stringToEnum(Region, args[arg]) orelse
                     return error.InvalidRegion;
             }
         } else {

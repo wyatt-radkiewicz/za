@@ -76,8 +76,8 @@ pub fn build(b: *std.Build) void {
     //
     my_exe.setLinkerScript(za.linker_script.gen(za_dep, .{
         .script = .{
-            .code_segment = .code,
-            .data_segment = .sram,
+            .code_section = .code,
+            .data_section = .sram,
         },
         .output = "linker.ld",
     }));
@@ -99,8 +99,8 @@ Here's the options for the linker script generator
 ```zig
 main_script: ?Build.LazyPath, // What is the main script used for the linker?
 script: Linker, // Linker script config
-    code_segment: ?Linker.Region, // Where are the text+rodata segments automatically put?
-    data_segment: ?Linker.Region, // Where are the data+bss segments automatically put?
+    code_section: ?Linker.Region, // Where are the text+rodata sections automatically put?
+    data_section: ?Linker.Region, // Where are the data+bss sections automatically put?
 output: []const u8, // Name of the output
 ```
 

@@ -7,7 +7,7 @@ const Linker = @import("Linker.zig");
 
 /// Assets file
 const assets = struct {
-    const readme_fmt = @embedFile("README.fmt.md");
+    const readme_fmt = @embedFile("assets/README.fmt.md");
 };
 
 /// Prints usage message

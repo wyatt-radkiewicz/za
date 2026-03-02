@@ -49,8 +49,8 @@ pub fn build(b: *std.Build) void {
     //
     my_exe.setLinkerScript(za.linker_script.gen(za_dep, .{
         .script = .{
-            .code_segment = .code,
-            .data_segment = .sram,
+            .code_section = .code,
+            .data_section = .sram,
         },
         .output = "linker.ld",
     }));

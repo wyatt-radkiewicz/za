@@ -98,8 +98,8 @@ pub fn build(b: *Build) !void {
         const linker_run = b.addRunArtifact(linker_exe);
         test_exe.setLinkerScript(Linker.Args.add(.{
             .script = .{
-                .code_segment = .code,
-                .data_segment = .sram,
+                .code_section = .code,
+                .data_section = .sram,
             },
             .output = b.fmt("test-{s}.ld", .{std.fs.path.stem(entry.name)}),
         }, linker_run));
@@ -112,6 +112,8 @@ pub fn build(b: *Build) !void {
     const clean_step = b.step("clean", "Remove build files");
     clean_step.dependOn(&b.addRemoveDirTree(b.path(".zig-cache/")).step);
     clean_step.dependOn(&b.addRemoveDirTree(b.path("zig-out/")).step);
+    clean_step.dependOn(&b.addRemoveDirTree(b.path("example/.zig-cache/")).step);
+    clean_step.dependOn(&b.addRemoveDirTree(b.path("example/zig-out/")).step);
 
     // Add format step
     const fmt_step = b.step("fmt", "Check code formatting");
@@ -133,8 +135,19 @@ pub fn build(b: *Build) !void {
         .root_module = readme_mod,
     });
 
+    // Create step to build example code (to see if it works)
+    const example_fetch_deps = b.addSystemCommand(&.{ "zig", "fetch", "--save" });
+    example_fetch_deps.setCwd(b.path("example/"));
+    example_fetch_deps.addDirectoryArg(b.path(""));
+    const example_check = b.addSystemCommand(&.{ "zig", "build", "-Dtarget=thumbeb-freestanding-eabi" });
+    example_check.step.dependOn(&example_fetch_deps.step);
+    example_check.setCwd(b.path("example/"));
+    const example_cleanup = b.addRemoveDirTree(b.path("example/zig-out/"));
+    example_cleanup.step.dependOn(&example_check.step);
+
     // Create readme generator step
     const readme_run = b.addRunArtifact(readme_exe);
+    readme_run.step.dependOn(&example_cleanup.step);
     readme_run.addFileArg(b.path("example/build.zig"));
     const readme_path = readme_run.addOutputFileArg("README.md");
     const readme_install = b.addInstallFile(readme_path, "README.md");

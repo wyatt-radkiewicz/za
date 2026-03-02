@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.15.2",
     .dependencies = .{
         .za = .{
-            .url = "../",
-            .hash = "za-0.0.0-OZCnhq7HAAAuBq8KoFJ1akMXcGsrnNHcxXKgSNqRZTiP",
+            .url = "/Users/wyatt/Developer/zig/za",
+            .hash = "za-0.0.0-OZCnhtzJAABcrmiG1-0LnD7mrDmIPkvrurBxT0Fecx70",
         },
     },
     .paths = .{

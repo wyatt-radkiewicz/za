@@ -7,6 +7,7 @@
     - [Importing the Module](#importing-the-module)
     - [Using the Linker Script Generator](#using-the-linker-script-generator)
     - [Generating README.md](#generating-readmemd)
+  - [Choosing a Target Triple](#choosing-a-target-triple)
 - [Testing the HAL](#testing-the-hal)
 
 ## Purpose
@@ -18,7 +19,7 @@
 #### Fetching the Dependency
 To add the HAL to your Zig project, run this in your project directory:
 ```bash
-zig fetch --save git+<TODO URL>
+zig fetch --save git+https://github.com/wyatt-radkiewicz/za.git
 ```
 #### Importing the Module
 In your `build.zig` use `std.Build.dependency(b, name, args)` to access the hal dependency.
@@ -44,5 +45,19 @@ zig build readme -p .
 * Note: `-p .` tells zig to put the output prefix
   directory in the current working directory for this invocation
 
-### Testing the HAL
-*TODO*
+### Choosing a Target Triple
+When using the HAL, a suitable target architecture must be chosen. The hal currently supports
+ARMv6 and ARMv7 compatible CPUs. In the case of zig you can pick a target triple like this:
+```
+thumbeb-freestanding-eabi[hf]
+```
+Where `[hf]` is optional, to allow hardware floating point support if your target machine supports it.
+Also sometimes specifying a specific cpu might be needed, to find their names for zig `-Dcpu` you can
+run `zig build -Dcpu=` and it will autocomplete a list for you.
+
+## Testing the HAL
+Test case executables are generated currently, but work still needs to be done to verify their
+correctness with renode. For now *tests can be built with*:
+```bash
+zig build test -Dtarget=<your target triple here> -Dcpu=<your cpu model here>
+```

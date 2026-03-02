@@ -6,6 +6,7 @@
     - [Fetching the Dependency](#fetching-the-dependency)
     - [Importing the Module](#importing-the-module)
     - [Using the Linker Script Generator](#using-the-linker-script-generator)
+    - [Accessing the Docs](#accessing-the-docs)
   - [Choosing a Target Triple](#choosing-a-target-triple)
 - [Testing the HAL](#testing-the-hal)
 - [Other Build Steps](#other-build-steps)
@@ -107,6 +108,10 @@ script: Linker, // Linker script config
     data_section: ?Linker.Region, // Where are the data+bss sections automatically put?
 output: []const u8, // Name of the output
 ```
+
+#### Accessing the Docs
+The docs can be found at [wyatt-radkiewicz.github.io/za](https://wyatt-radkiewicz.github.io/za/) or
+locally at [docs/](docs/).
 
 ### Choosing a Target Triple
 When using the HAL, a suitable target architecture must be chosen. The hal currently supports

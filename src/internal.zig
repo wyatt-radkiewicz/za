@@ -1,5 +1,68 @@
 //! Internal registers
 const std = @import("std");
+const Arch = @import("arch.zig").Arch;
+
+// Core registers
+pub const core = struct {
+    // Do a supervisor call
+    pub fn svc(comptime val: u8) void {
+        asm volatile (std.fmt.comptimePrint("svc #0x{x:0>2}", .{val}));
+    }
+
+    // Core registers
+    pub const Register = enum {
+        apsr,
+        ipsr,
+        epsr,
+        basepri,
+        control,
+        primask,
+        faultmask,
+
+        // Get the 32 bit register
+        pub fn get(this: @This()) u32 {
+            return switch (this) {
+                inline else => |reg| asm volatile (std.fmt.comptimePrint(
+                        "mrs %[ret], {s}",
+                        .{@tagName(reg)},
+                    )
+                    : [ret] "=r" (-> u32),
+                ),
+            };
+        }
+
+        // Set the 32 bit register
+        pub fn set(this: @This(), val: u32) void {
+            switch (this) {
+                inline .primask, .faultmask => |reg| switch (val == 0) {
+                    inline else => |flag| asm volatile (std.fmt.comptimePrint("cps{s} {s}", .{
+                            switch (flag) {
+                                true => "ie",
+                                false => "id",
+                            },
+                            switch (reg) {
+                                .primask => "i",
+                                .faultmask => if (Arch.target == .v6) return error.Unsupported else "f",
+                                else => unreachable,
+                            },
+                        })),
+                },
+                inline else => |reg| {
+                    asm volatile (std.fmt.comptimePrint(
+                            "msr {s}, %[val]",
+                            .{@tagName(reg)},
+                        )
+                        :
+                        : [val] "r" (val),
+                    );
+                    if (reg == .control) {
+                        asm volatile ("isb");
+                    }
+                },
+            }
+        }
+    };
+};
 
 // System control space
 pub const scs = struct {
@@ -111,12 +174,15 @@ pub const systick = struct {
     pub const Csr = packed struct(u32) {
         enable: bool = false,
         tickint: bool = false,
-        clksource: Source = .cpu,
+        clksource: Source = .internal,
         reserved0: u13 = 0,
         countflag: bool = false,
         reserved1: u15 = 0,
 
-        pub const Source = enum(u1) { cpu, external };
+        pub const Source = enum(u1) {
+            internal, // Systick timer is sourced from cpu clock
+            external, // Systick timer is sourced from external clock
+        };
     };
     pub const csr: *volatile Csr = @ptrFromInt(0xe000_e010);
     pub const rvr: *volatile u32 = @ptrFromInt(0xe000_e014);

@@ -33,53 +33,34 @@ pub const Register = union(enum) {
             .sleepdeep => .{ .sleepdeep = internal.scs.scr.sleepdeep },
             .sleeponexit => .{ .sleeponexit = internal.scs.scr.sleeponexit },
             .fpuaccess => .{ .fpuaccess = internal.scs.cpacr.cp10 },
-            inline .status,
-            .basepri,
-            .primask,
-            .faultmask,
-            => @unionInit(@This(), @tagName(tag), blk: {
-                switch (tag) {
-                    .basepri, .faultmask => if (Arch.target == .v6) return error.Unsupported,
-                    else => {},
-                }
-                const code = std.fmt.comptimePrint("mrs %[ret], {s}", .{switch (tag) {
-                    .status => "apsr",
-                    .basepri => "basepri",
-                    .primask => "primask",
-                    .faultmask => "faultmask",
-                    else => unreachable,
-                }});
-                const reg: u32 = asm volatile (code
-                    : [ret] "=r" (-> u32),
-                );
-                break :blk switch (tag) {
-                    .status => @bitCast(@as(
-                        @typeInfo(Status).@"struct".backing_integer.?,
-                        @truncate(reg >> 32 - @bitSizeOf(Status)),
-                    )),
-                    .basepri => @truncate(reg),
-                    .primask, .faultmask => reg & 1 == 1,
-                };
-            }),
-            inline .thread_privilege,
-            .stack_pointer,
-            .fpu_active,
-            => @unionInit(@This(), @tagName(tag), blk: {
-                const control: u3 = @truncate(asm volatile ("mrs %[ret], control"
-                    : [ret] "=r" (-> u32),
-                ));
-                break :blk switch (tag) {
-                    .thread_privilege => @enumFromInt(@as(u1, @truncate(control))),
-                    .stack_pointer => @enumFromInt(@as(u1, @truncate(control >> 1))),
-                    .fpu_active => if (Arch.target == .v6)
-                        return error.Unsupported
-                    else
-                        control & 1 << 2 != 0,
-                };
-            }),
+            .status => .{ .status = @bitCast(@as(
+                @typeInfo(Status).@"struct".backing_integer.?,
+                @truncate(internal.core.Register.apsr.get() >> 32 - @bitSizeOf(Status)),
+            )) },
+            .basepri => .{ .basepri = if (Arch.target == .v6)
+                return error.Unsupported
+            else
+                @truncate(internal.core.Register.basepri.get()) },
+            .primask => .{ .primask = internal.core.Register.primask.get() & 1 == 1 },
+            .faultmask => .{ .faultmask = if (Arch.target == .v6)
+                return error.Unsupported
+            else
+                internal.core.Register.faultmask.get() & 1 == 1 },
+            .thread_privilege => .{ .thread_privilege = @enumFromInt(
+                @as(u1, @truncate(internal.core.Register.control.get())),
+            ) },
+            .stack_pointer => .{ .thread_privilege = @enumFromInt(
+                @as(u1, @truncate(internal.core.Register.control.get() >> 1)),
+            ) },
+            .fpu_active => .{
+                .thread_privilege = if (Arch.target == .v6)
+                    return error.Unsupported
+                else
+                    @as(u1, @truncate(internal.core.Register.control.get() >> 2)) == 1,
+            },
             .systick_config => .{ .systick_config = .{
                 .enabled = internal.systick.csr.enable,
-                .source = @enumFromInt(@intFromEnum(internal.systick.csr.clksource)),
+                .source = internal.systick.csr.clksource,
                 .reload = internal.systick.rvr,
             } },
             .systick_current => .{ .systick_current = @truncate(internal.systick.cvr) },
@@ -98,79 +79,49 @@ pub const Register = union(enum) {
                 internal.scs.cpacr.cp10 = val;
                 internal.scs.cpacr.cp11 = val;
             },
-            inline .status, .basepri => {
-                switch (this) {
-                    .basepri => if (Arch.target == .v6) return error.Unsupported,
-                    else => {},
-                }
-                const val: u32 = switch (this) {
-                    .basepri => |x| x,
-                    .status => |x| @as(u32, @as(
-                        @typeInfo(Status).@"struct".backing_integer.?,
-                        @bitCast(x),
-                    )) << 32 - @bitSizeOf(Status),
-                };
-                const code = std.fmt.comptimePrint("msr {s}, %[val]", .{switch (this) {
-                    .status => "apsr",
-                    .basepri => "basepri",
-                    else => unreachable,
-                }});
-                asm volatile (code
-                    :
-                    : [val] "=r" (val),
-                );
+            .status => |val| {
+                var apsr = internal.core.Register.apsr.get();
+                apsr &= 0x07ff_ffff;
+                apsr |= @as(u32, @as(
+                    @typeInfo(Status).@"struct".backing_integer.?,
+                    @bitCast(val),
+                )) << 32 - @bitSizeOf(Status);
+                internal.core.Register.apsr.set(apsr);
             },
-            .primask, .faultmask => |val| asm volatile (std.fmt.comptimePrint("cps{s} {s}", .{
-                    switch (val) {
-                        true => "ie",
-                        false => "id",
-                    },
-                    switch (this) {
-                        .primask => "i",
-                        .faultmask => if (Arch.target == .v6) return error.Unsupported else "f",
-                        else => unreachable,
-                    },
-                })),
+            .basepri => |val| {
+                var basepri = internal.core.Register.basepri.get();
+                basepri &= 0xffff_ff00;
+                basepri |= val;
+                internal.core.Register.basepri.set(basepri);
+            },
+            .primask => |val| internal.core.Register.primask.set(@intFromBool(val)),
+            .faultmask => |val| internal.core.Register.faultmask.set(@intFromBool(val)),
+            .thread_privilege => |val| {
+                var control = internal.core.Register.control.get();
+                control &= 1 << 0;
+                control |= @as(u32, @intFromEnum(val)) << 0;
+                internal.core.Register.control.set(control);
+            },
+            .stack_pointer => |val| {
+                var control = internal.core.Register.control.get();
+                control &= 1 << 1;
+                control |= @as(u32, @intFromEnum(val)) << 1;
+                internal.core.Register.control.set(control);
+            },
             .fpu_active => return error.ReadOnly,
-            inline .thread_privilege, .stack_pointer => {
-                var control: u3 = @truncate(asm volatile ("mrs %[ret], control"
-                    : [ret] "=r" (-> u32),
-                ));
-                switch (this) {
-                    .thread_privilege => |val| {
-                        control &= 1 << 0;
-                        control |= @intFromEnum(val) << 0;
-                    },
-                    .stack_pointer => |val| {
-                        control &= 1 << 1;
-                        control |= @intFromEnum(val) << 1;
-                    },
-                }
-                asm volatile (
-                    \\msr control, %[control]
-                    \\isb
-                    :
-                    : [control] "=r" (control),
-                );
-            },
             .systick_config => |val| {
-                internal.systick.rvr = val.reload;
-                internal.systick.csr.clksource = @enumFromInt(@intFromEnum(val.source));
+                internal.systick.rvr.* = val.reload;
+                internal.systick.csr.clksource = val.source;
                 internal.systick.csr.enable = val.enabled;
             },
             .systick_current => return error.ReadOnly,
-            .systick_reset => internal.systick.cvr = 0,
+            .systick_reset => internal.systick.cvr.* = 0,
             .systick_counted => return error.ReadOnly,
         }
     }
 
     /// Coprocessor access
-    pub const Access = enum(u2) {
-        denied,
-        privileged,
-        reserved,
-        full,
-    };
+    pub const Access = internal.scs.Cpacr.Access;
 
     /// Application status flags
     pub const Status = packed struct {
@@ -206,9 +157,6 @@ pub const Register = union(enum) {
         pub const Counter = u24;
 
         /// How is the clock sourced?
-        pub const Source = enum(u1) {
-            internal, // Same as cpu clock
-            external, // External reference clock
-        };
+        pub const Source = internal.systick.Csr.Source;
     };
 };

@@ -1,0 +1,10 @@
+.{
+    .{
+        .name = "PRIMASK is true",
+        .input = .{ .primask = true },
+    },
+    .{
+        .name = "PRIMASK is false",
+        .input = .{ .primask = false },
+    },
+}

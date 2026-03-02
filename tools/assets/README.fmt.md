@@ -51,20 +51,24 @@ locally at [docs/](docs/).
 When using the HAL, a suitable target architecture must be chosen. The hal currently supports
 ARMv6 and ARMv7 compatible CPUs. In the case of zig you can pick a target triple like this:
 ```
-thumbeb-freestanding-eabi[hf]
+thumb[eb]-freestanding-eabi[hf]
 ```
-Where `[hf]` is optional, to allow hardware floating point support if your target machine supports it.
-Also sometimes specifying a specific cpu might be needed, to find their names for zig `-Dcpu` you can
-run this and it will autocomplete a list for you.
+Where:
+ - `[hf]` is for hardware floating point support
+ - `[eb]` is for big endian targets? *not quite sure...*
+---
+When using core processor registers in the HAL, you need to specify a cpu model to compile for
+to zig. Cpu models for your architecture can be found by running:
 ```bash
-zig build -Dcpu=
+zig build -Dtarget=<your target here> -Dcpu=
 ```
+It will list supported cpu models that can then be use for `-Dcpu` when compiling.
 
 ## Testing the HAL
 Test case executables are generated currently, but work still needs to be done to verify their
 correctness with renode. For now *tests can be built with*:
 ```bash
-zig build tests -Dtarget=<your target triple here> -Dcpu=<your cpu model here>
+zig build tests -Dtarget=<your target triple here> -Dcpu=<your target cpu here>
 ```
 
 ## Other Build Steps

@@ -3,54 +3,52 @@ const std = @import("std");
 pub const Linker = @import("tools/Linker.zig");
 const Options = @import("tools/Options.zig");
 const Build = std.Build;
-const test_cases: []const TestCase = @import("tests/cases.zon");
+const test_suites: []const []const u8 = @import("tests/suites.zon");
 
-/// Data pertaining to a test case
-const TestCase = struct {
-    path: []const u8,
+/// Build the test case
+fn buildSuite(
+    b: *Build,
+    suite: []const u8,
+    target: Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    options: Options,
+    za_mod: *Build.Module,
+    linker_exe: *Build.Step.Compile,
+) *Build.Step.Compile {
+    // Create the test module
+    const test_mod = b.createModule(.{
+        .root_source_file = b.path("tests/runner.zig"),
+        .target = target,
+        .optimize = optimize,
+        .omit_frame_pointer = options.omit_frame_pointer,
+    });
+    test_mod.addImport("za", za_mod);
+    test_mod.addAnonymousImport("suite", .{
+        .root_source_file = b.path(b.pathJoin(&.{ "tests/suites", suite, "main.zig" })),
+        .target = target,
+        .optimize = optimize,
+        .omit_frame_pointer = options.omit_frame_pointer,
+        .imports = &.{.{ .name = "za", .module = za_mod }},
+    });
+    test_mod.addAnonymousImport("input", .{
+        .root_source_file = b.path(b.pathJoin(&.{ "tests/suites", suite, "cases.zon" })),
+    });
 
-    /// Build the test case
-    fn build(
-        this: @This(),
-        b: *Build,
-        target: Build.ResolvedTarget,
-        optimize: std.builtin.OptimizeMode,
-        options: Options,
-        za_mod: *Build.Module,
-        linker_exe: *Build.Step.Compile,
-    ) *Build.Step.Compile {
-        // Create the test module
-        const test_mod = b.createModule(.{
-            .root_source_file = b.path("tests/runner.zig"),
-            .target = target,
-            .optimize = optimize,
-            .omit_frame_pointer = options.omit_frame_pointer,
-        });
-        test_mod.addImport("za", za_mod);
-        test_mod.addAnonymousImport("test_case", .{
-            .root_source_file = b.path(b.pathJoin(&.{ "tests/cases/", this.path })),
-            .target = target,
-            .optimize = optimize,
-            .omit_frame_pointer = options.omit_frame_pointer,
-            .imports = &.{.{ .name = "za", .module = za_mod }},
-        });
-
-        // Build the test module and executable
-        const test_exe = b.addExecutable(.{
-            .name = b.fmt("test-{s}", .{std.fs.path.stem(this.path)}),
-            .root_module = test_mod,
-        });
-        const linker_run = b.addRunArtifact(linker_exe);
-        test_exe.setLinkerScript(Linker.Args.add(.{
-            .script = .{
-                .code_section = .code,
-                .data_section = .sram,
-            },
-            .output = b.fmt("test-{s}.ld", .{std.fs.path.stem(this.path)}),
-        }, linker_run));
-        return test_exe;
-    }
-};
+    // Build the test module and executable
+    const test_exe = b.addExecutable(.{
+        .name = b.fmt("test-{s}", .{std.fs.path.stem(suite)}),
+        .root_module = test_mod,
+    });
+    const linker_run = b.addRunArtifact(linker_exe);
+    test_exe.setLinkerScript(Linker.Args.add(.{
+        .script = .{
+            .code_section = .code,
+            .data_section = .sram,
+        },
+        .output = b.fmt("test-{s}.ld", .{std.fs.path.stem(suite)}),
+    }, linker_run));
+    return test_exe;
+}
 
 /// Linker script namespace
 pub const linker_script = struct {
@@ -114,9 +112,9 @@ pub fn build(b: *Build) !void {
     const tests_step = b.step("tests", "Run tests (check README.md)");
 
     // Build each test as seperate executable
-    for (test_cases) |test_case| {
+    for (test_suites) |test_suite| {
         // Build the test
-        const test_exe = test_case.build(b, target, optimize, options, za_mod, linker_exe);
+        const test_exe = buildSuite(b, test_suite, target, optimize, options, za_mod, linker_exe);
 
         // Add it to the test step
         tests_step.dependOn(&b.addInstallArtifact(test_exe, .{}).step);
@@ -165,19 +163,17 @@ pub fn build(b: *Build) !void {
     // Create step to build example code (to see if it works)
     const example_fetch_deps = b.addSystemCommand(&.{ "zig", "fetch", "--save" });
     example_fetch_deps.setCwd(b.path("example/"));
-    example_fetch_deps.addDirectoryArg(b.path(""));
+    example_fetch_deps.addArg("../");
     const example_check = b.addSystemCommand(&.{ "zig", "build", "-Dtarget=thumbeb-freestanding-eabi" });
     example_check.step.dependOn(&example_fetch_deps.step);
     example_check.setCwd(b.path("example/"));
     const example_cleanup = b.addRemoveDirTree(b.path("example/zig-out/"));
     example_cleanup.step.dependOn(&example_check.step);
-
-    // Add example check to test step
-    tests_step.dependOn(&example_cleanup.step);
+    const example_step = b.step("example", "Build the example");
+    example_step.dependOn(&example_cleanup.step);
 
     // Create readme generator step
     const readme_run = b.addRunArtifact(readme_exe);
-    readme_run.step.dependOn(&example_cleanup.step);
     readme_run.addFileArg(b.path("example/build.zig"));
     const readme_path = readme_run.addOutputFileArg("README.md");
     const readme_install = b.addInstallFile(readme_path, "README.md");

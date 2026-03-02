@@ -1,0 +1,9 @@
+:name: za tester init renode script
+
+mach create "za_test_mach"
+using sysbus
+machine LoadPlatformDescription $ORIGIN/za_test_platform.repl
+sysbus LoadELF $bin
+cpu VectorTableOffset 0
+cpu SP `sysbus ReadDoubleWord 0x00000000`
+cpu PC `sysbus ReadDoubleWord 0x00000004`

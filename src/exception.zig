@@ -88,7 +88,7 @@ pub const Exception = union(enum) {
                     ),
                 },
             },
-            .sv_call => if (pend) asm volatile ("svc #0x00") else {},
+            .sv_call => if (pend) internal.core.svc(0) else {},
             .external_interrupt => |i| {
                 const word = i / 32;
                 const mask = @as(u32, 1) << @as(u5, @truncate(i));
@@ -168,9 +168,7 @@ pub const Exception = union(enum) {
 
     /// Gets the currently active exception
     pub fn active() ?@This() {
-        return .init(@truncate(asm volatile ("mrs %[ret], ipsr"
-            : [ret] "=r" (-> u32),
-        )));
+        return .init(@truncate(internal.core.Register.ipsr.get()));
     }
 
     /// Priority group and subpriority

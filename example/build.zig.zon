@@ -1,0 +1,17 @@
+.{
+    .name = .example,
+    .version = "0.0.0",
+    .fingerprint = 0x6eec9b9f773274c2,
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .za = .{
+            .url = "../",
+            .hash = "za-0.0.0-OZCnhtuoAAB3Kt-bn39EoBtVEYtna3Pl7055GFN72MI9",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}

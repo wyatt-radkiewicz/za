@@ -6,26 +6,20 @@ const Build = std.Build;
 
 /// Linker script namespace
 pub const linker_script = struct {
-    var exe: ?*Build.Step.Compile = null;
-    var exe_lock: std.Thread.Mutex = .{};
-
     /// Generate a linker script
-    pub fn gen(b: *Build, args: Linker.Args) ?Build.LazyPath {
-        exe_lock.lock();
-        defer exe_lock.unlock();
-        const linker_run = b.addRunArtifact(exe orelse return null);
+    pub fn gen(za: *Build.Dependency, args: Linker.Args) Build.LazyPath {
+        const linker_exe = za.artifact("za-linker-util");
+        const linker_run = za.builder.addRunArtifact(linker_exe);
         return args.add(linker_run);
     }
 
     /// Create the linker script generator
-    fn init(b: *Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) void {
-        // If we already are initialized, return
-        exe_lock.lock();
-        defer exe_lock.unlock();
-        if (exe != null) {
-            return;
-        }
-
+    /// Returns the linker executable
+    fn init(
+        b: *Build,
+        target: std.Build.ResolvedTarget,
+        optimize: std.builtin.OptimizeMode,
+    ) *Build.Step.Compile {
         // Create the module
         const linker_mod = b.createModule(.{
             .root_source_file = b.path("src/build/Linker.zig"),
@@ -34,10 +28,18 @@ pub const linker_script = struct {
         });
 
         // Create the executable
-        exe = b.addExecutable(.{
+        const linker_exe = b.addExecutable(.{
             .name = "za-linker-util",
             .root_module = linker_mod,
         });
+        const linker_install = b.addInstallArtifact(linker_exe, .{
+            .dest_dir = .disabled,
+            .pdb_dir = .disabled,
+            .h_dir = .disabled,
+            .implib_dir = .disabled,
+        });
+        b.getInstallStep().dependOn(&linker_install.step);
+        return linker_exe;
     }
 };
 
@@ -58,7 +60,7 @@ pub fn build(b: *Build) !void {
     });
 
     // Linker script generator
-    linker_script.init(b, native_target, .ReleaseSafe);
+    const linker_exe = linker_script.init(b, native_target, .ReleaseSafe);
 
     // Add tests step
     const tests_step = b.step("test", "Run tests (check README.md)");
@@ -93,17 +95,14 @@ pub fn build(b: *Build) !void {
             .name = b.fmt("test-{s}", .{std.fs.path.stem(entry.name)}),
             .root_module = test_mod,
         });
-        if (linker_script.gen(b, .{
+        const linker_run = b.addRunArtifact(linker_exe);
+        test_exe.setLinkerScript(Linker.Args.add(.{
             .script = .{
                 .code_segment = .code,
                 .data_segment = .sram,
             },
             .output = b.fmt("test-{s}.ld", .{std.fs.path.stem(entry.name)}),
-        })) |path| {
-            test_exe.setLinkerScript(path);
-        } else {
-            test_exe.step.dependOn(&b.addFail("Linker script not generated").step);
-        }
+        }, linker_run));
 
         // Add it to the test step
         tests_step.dependOn(&b.addInstallArtifact(test_exe, .{}).step);

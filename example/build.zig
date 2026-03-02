@@ -47,13 +47,13 @@ pub fn build(b: *std.Build) void {
     //
     // Use the embedded linker script generator
     //
-    my_exe.setLinkerScript(za.linker_script.gen(b, .{
+    my_exe.setLinkerScript(za.linker_script.gen(za_dep, .{
         .script = .{
             .code_segment = .code,
             .data_segment = .sram,
         },
         .output = "linker.ld",
-    }).?);
+    }));
 
     // Add install step
     const install_step = b.getInstallStep();

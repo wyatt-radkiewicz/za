@@ -145,6 +145,9 @@ pub fn build(b: *Build) !void {
     const example_cleanup = b.addRemoveDirTree(b.path("example/zig-out/"));
     example_cleanup.step.dependOn(&example_check.step);
 
+    // Add example check to test step
+    tests_step.dependOn(&example_cleanup.step);
+
     // Create readme generator step
     const readme_run = b.addRunArtifact(readme_exe);
     readme_run.step.dependOn(&example_cleanup.step);

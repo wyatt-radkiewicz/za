@@ -8,7 +8,11 @@
     - [Using the Linker Script Generator](#using-the-linker-script-generator)
   - [Choosing a Target Triple](#choosing-a-target-triple)
 - [Testing the HAL](#testing-the-hal)
-- [Generating README.md](#generating-readmemd)
+- [Other Build Steps](#other-build-steps)
+  - [Generating the Documentation](#generating-the-documentation)
+  - [Generating README.md](#generating-readmemd)
+  - [Cleaning Up](#cleaning-up)
+  - [Checking Formatting](#checking-formatting)
 
 ## Purpose
 - This library is meant to help write bare metal code for *ARM Cortex-M* cpus and
@@ -112,7 +116,10 @@ thumbeb-freestanding-eabi[hf]
 ```
 Where `[hf]` is optional, to allow hardware floating point support if your target machine supports it.
 Also sometimes specifying a specific cpu might be needed, to find their names for zig `-Dcpu` you can
-run `zig build -Dcpu=` and it will autocomplete a list for you.
+run this and it will autocomplete a list for you.
+```bash
+zig build -Dcpu=
+```
 
 ## Testing the HAL
 Test case executables are generated currently, but work still needs to be done to verify their
@@ -121,10 +128,28 @@ correctness with renode. For now *tests can be built with*:
 zig build test -Dtarget=<your target triple here> -Dcpu=<your cpu model here>
 ```
 
-## Generating README.md
+## Other Build Steps
+### Generating the Documentation
+To generate the docs run this in the "za" working directory:
+```bash
+zig build docs -p .
+```
+* Note: `-p .` tells zig to put the output prefix
+  directory in the current working directory for this invocation
+### Generating README.md
 To generate this README.md run this in the "za" working directory:
 ```bash
 zig build readme -p .
 ```
 * Note: `-p .` tells zig to put the output prefix
   directory in the current working directory for this invocation
+### Cleaning Up
+Run this command to delete `.zig-cache` and `zig-out` in project root and [examples](examples/) directory:
+```bash
+zig build clean
+```
+### Checking Formatting
+This will only check the formatting of files in the project (not correct them):
+```bash
+zig build fmt
+```

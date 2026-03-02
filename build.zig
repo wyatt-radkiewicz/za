@@ -136,6 +136,20 @@ pub fn build(b: *Build) !void {
         .paths = &.{ "src/", "tests/", "tools/", "example/", "build.zig", "build.zig.zon" },
     }).step);
 
+    // Add documentation step
+    const docs_lib_step = b.addLibrary(.{
+        .name = "za",
+        .root_module = za_mod,
+        .linkage = .static,
+    });
+    const docs_install_step = b.addInstallDirectory(.{
+        .source_dir = docs_lib_step.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs",
+    });
+    const docs_step = b.step("docs", "Generate documentation");
+    docs_step.dependOn(&docs_install_step.step);
+
     // Create readme generator
     const readme_mod = b.createModule(.{
         .root_source_file = b.path("tools/readme.zig"),

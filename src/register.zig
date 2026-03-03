@@ -53,7 +53,7 @@ pub const Register = union(enum) {
                 @as(u1, @truncate(internal.core.Register.control.get() >> 1)),
             ) },
             .fpu_active => .{
-                .thread_privilege = if (Arch.target == .v6)
+                .fpu_active = if (Arch.target == .v6)
                     return error.Unsupported
                 else
                     @as(u1, @truncate(internal.core.Register.control.get() >> 2)) == 1,
@@ -61,9 +61,9 @@ pub const Register = union(enum) {
             .systick_config => .{ .systick_config = .{
                 .enabled = internal.systick.csr.enable,
                 .source = internal.systick.csr.clksource,
-                .reload = internal.systick.rvr,
+                .reload = @truncate(internal.systick.rvr.*),
             } },
-            .systick_current => .{ .systick_current = @truncate(internal.systick.cvr) },
+            .systick_current => .{ .systick_current = @truncate(internal.systick.cvr.*) },
             .systick_reset => return error.WriteOnly,
             .systick_counted => .{ .systick_counted = internal.systick.csr.countflag },
         };

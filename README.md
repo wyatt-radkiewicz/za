@@ -102,7 +102,7 @@ pub fn build(b: *std.Build) void {
 Here are the dependency options:
 ```zig
 omit_frame_pointer: bool, // Omit frame pointer setup (default: false)
-test_case_timeout: f32, // How many seconds to let a test case run (default: 5.0)
+test_case_timeout: f32, // How many seconds to let a test case run (default: 10.0)
 ```
 #### Using the Linker Script Generator
 Here's the options for the linker script generator

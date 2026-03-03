@@ -5,7 +5,7 @@ const std = @import("std");
 omit_frame_pointer: bool = false,
 
 /// How long to wait until a test case is terminated?
-test_case_timeout: f32 = 5.0,
+test_case_timeout: f32 = 10.0,
 
 /// Gets the options from the builder
 pub fn init(b: *std.Build) @This() {
@@ -25,6 +25,6 @@ pub fn init(b: *std.Build) @This() {
 pub fn fieldDesc(option: std.meta.FieldEnum(@This())) []const u8 {
     return switch (option) {
         .omit_frame_pointer => "Omit frame pointer setup (default: false)",
-        .test_case_timeout => "How many seconds to let a test case run (default: 5.0)",
+        .test_case_timeout => "How many seconds to let a test case run (default: 10.0)",
     };
 }

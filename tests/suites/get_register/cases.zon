@@ -1,0 +1,16 @@
+.{
+    .{
+        .name = "PRIMASK is false",
+        .input = .{
+            .tag = .primask,
+            .expected = .{ .primask = false },
+        },
+    },
+    .{
+        .name = "PRIMASK is true",
+        .input = .{
+            .tag = .primask,
+            .expected = .{ .primask = true },
+        },
+    },
+}

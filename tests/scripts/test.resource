@@ -1,12 +1,12 @@
 *** Settings ***
 Documentation   Robot framework resource file for za tests
 Resource        ${RENODEKEYWORDS}
-Resource        ${ZA_PROJECT_ROOT}/${ZA_TEST_VARIABLES}
+Resource        ${ZA_TEST_VARIABLES}
 
 *** Keywords ***
 Load Machine
     Test Setup
-    Execute Command     set bin @${ZA_PROJECT_ROOT}/${ZA_TEST_BIN}
+    Execute Command     set bin @${ZA_TEST_BIN}
     Execute Command     set platform @${ZA_TEST_PLATFORM}
     Execute Command     include @${ZA_TEST_SCRIPT}
     

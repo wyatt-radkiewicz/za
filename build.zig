@@ -90,32 +90,26 @@ fn buildAndRunSuite(
     const variables_run = b.addRunArtifact(variables_exe);
     const variables_file = variables_run.addOutputFileArg("test_cases.resource");
 
-    // Add the run step to run the robot file
-    const test_run = b.addSystemCommand(&.{"renode-test"});
-
-    // Add the variables
-    test_run.addArg("--variable");
-    test_run.addPrefixedFileArg("ZA_PROJECT_ROOT:", b.path(""));
-    test_run.addArg("--variable");
-    test_run.addPrefixedFileArg("ZA_TEST_VARIABLES:", variables_file);
-    test_run.addArg("--variable");
-    test_run.addPrefixedFileArg("ZA_TEST_RESOURCES:", b.path("tests/scripts/test.resource"));
-    test_run.addArg("--variable");
-    test_run.addArg(b.fmt("ZA_TEST_TIMEOUT:{}", .{options.test_case_timeout}));
-    test_run.addArg("--variable");
-    test_run.addPrefixedFileArg("ZA_TEST_BIN:", test_exe.getEmittedBin());
-    test_run.addArg("--variable");
-    test_run.addPrefixedFileArg("ZA_TEST_PLATFORM:", b.path(b.pathJoin(&.{ "tests/scripts/", platform })));
-    test_run.addArg("--variable");
-    test_run.addPrefixedFileArg("ZA_TEST_SCRIPT:", b.path("tests/scripts/init.resc"));
-
-    // Add the output and input
-    test_run.addArg("-r");
+    // Run the test runner
+    const test_run = b.addSystemCommand(&.{"python3"});
+    test_run.addFileArg(b.path("tools/run_tests.py"));
+    test_run.addArgs(&.{
+        "--platform",
+        platform,
+        "--suite",
+        suite,
+        "--timeout",
+        b.fmt("{}", .{options.test_case_timeout}),
+    });
+    test_run.addArg("--variables");
+    test_run.addFileArg(variables_file);
+    test_run.addArg("--bin");
+    test_run.addFileArg(test_exe.getEmittedBin());
+    test_run.addArg("--output");
     _ = test_run.addOutputDirectoryArg("test_results");
-    test_run.addFileArg(b.path(b.pathJoin(&.{ "tests/suites/", suite, "cases.robot" })));
-
-    // Make it print to stdout so the user can see if the tests succeeded
-    test_run.stdio = .inherit;
+    test_run.addArg("--tests_dir");
+    test_run.addDirectoryArg(b.path("tests/"));
+    test_run.has_side_effects = true;
     return test_run;
 }
 

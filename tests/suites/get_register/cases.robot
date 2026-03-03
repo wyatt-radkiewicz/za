@@ -14,3 +14,7 @@ PRIMASK is true
 PRIMASK is false
     Execute Command  cpu PRIMASK 0x0
     Test Case        Passes  ${PRIMASK IS FALSE}
+
+PRIMASK is false Fails
+    Execute Command  cpu PRIMASK 0x1
+    Test Case        Fails  ${PRIMASK IS FALSE}

@@ -2,7 +2,7 @@
 
 mach create "za_test_mach"
 using sysbus
-machine LoadPlatformDescription $ORIGIN/za_test_platform.repl
+machine LoadPlatformDescription $platform
 sysbus LoadELF $bin
 cpu VectorTableOffset 0
 cpu SP `sysbus ReadDoubleWord 0x00000000`

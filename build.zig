@@ -22,8 +22,8 @@ const TestTarget = struct {
     }
 };
 
-/// Build the test case
-fn buildSuite(
+/// Build and run the test case
+fn buildAndRunSuite(
     b: *Build,
     suite: []const u8,
     target: Build.ResolvedTarget,
@@ -31,7 +31,8 @@ fn buildSuite(
     options: Options,
     za_mod: *Build.Module,
     linker_exe: *Build.Step.Compile,
-) *Build.Step.Compile {
+    platform: []const u8,
+) *Build.Step.Run {
     // Create the test module
     const test_mod = b.createModule(.{
         .root_source_file = b.path("tests/runner.zig"),
@@ -39,17 +40,19 @@ fn buildSuite(
         .optimize = optimize,
         .omit_frame_pointer = options.omit_frame_pointer,
     });
-    test_mod.addImport("za", za_mod);
-    test_mod.addAnonymousImport("suite", .{
+    const suite_mod = b.createModule(.{
         .root_source_file = b.path(b.pathJoin(&.{ "tests/suites", suite, "main.zig" })),
         .target = target,
         .optimize = optimize,
         .omit_frame_pointer = options.omit_frame_pointer,
-        .imports = &.{.{ .name = "za", .module = za_mod }},
     });
-    test_mod.addAnonymousImport("input", .{
+    const cases_mod = b.createModule(.{
         .root_source_file = b.path(b.pathJoin(&.{ "tests/suites", suite, "cases.zon" })),
     });
+    suite_mod.addImport("za", za_mod);
+    test_mod.addImport("za", za_mod);
+    test_mod.addImport("suite", suite_mod);
+    test_mod.addImport("cases", cases_mod);
 
     // Build the test module and executable
     const target_triple = target.result.zigTriple(b.allocator) catch @panic("OOM");
@@ -70,7 +73,50 @@ fn buildSuite(
         },
         .output = b.fmt("{s}.ld", .{test_name}),
     }, linker_run));
-    return test_exe;
+
+    // Build the variables file
+    const native_target = b.resolveTargetQuery(.{});
+    const variables_mod = b.createModule(.{
+        .root_source_file = b.path("tools/variables.zig"),
+        .target = native_target,
+        .optimize = .ReleaseSafe,
+    });
+    variables_mod.addImport("suite", suite_mod);
+    variables_mod.addImport("cases", cases_mod);
+    const variables_exe = b.addExecutable(.{
+        .name = "za-variables-gen",
+        .root_module = variables_mod,
+    });
+    const variables_run = b.addRunArtifact(variables_exe);
+    const variables_file = variables_run.addOutputFileArg("test_cases.resource");
+
+    // Add the run step to run the robot file
+    const test_run = b.addSystemCommand(&.{"renode-test"});
+
+    // Add the variables
+    test_run.addArg("--variable");
+    test_run.addPrefixedFileArg("ZA_PROJECT_ROOT:", b.path(""));
+    test_run.addArg("--variable");
+    test_run.addPrefixedFileArg("ZA_TEST_VARIABLES:", variables_file);
+    test_run.addArg("--variable");
+    test_run.addPrefixedFileArg("ZA_TEST_RESOURCES:", b.path("tests/scripts/test.resource"));
+    test_run.addArg("--variable");
+    test_run.addArg(b.fmt("ZA_TEST_TIMEOUT:{}", .{options.test_case_timeout}));
+    test_run.addArg("--variable");
+    test_run.addPrefixedFileArg("ZA_TEST_BIN:", test_exe.getEmittedBin());
+    test_run.addArg("--variable");
+    test_run.addPrefixedFileArg("ZA_TEST_PLATFORM:", b.path(b.pathJoin(&.{ "tests/scripts/", platform })));
+    test_run.addArg("--variable");
+    test_run.addPrefixedFileArg("ZA_TEST_SCRIPT:", b.path("tests/scripts/init.resc"));
+
+    // Add the output and input
+    test_run.addArg("-r");
+    _ = test_run.addOutputDirectoryArg("test_results");
+    test_run.addFileArg(b.path(b.pathJoin(&.{ "tests/suites/", suite, "cases.robot" })));
+
+    // Make it print to stdout so the user can see if the tests succeeded
+    test_run.stdio = .inherit;
+    return test_run;
 }
 
 /// Linker script namespace
@@ -138,8 +184,8 @@ pub fn build(b: *Build) !void {
     for (test_queries) |test_query| {
         const test_target = test_query.resolvedTarget(b);
         for (test_suites) |test_suite| {
-            // Build the test
-            const test_exe = buildSuite(
+            // Build the test and run it
+            tests_step.dependOn(&buildAndRunSuite(
                 b,
                 test_suite,
                 test_target,
@@ -147,10 +193,8 @@ pub fn build(b: *Build) !void {
                 options,
                 za_mod,
                 linker_exe,
-            );
-
-            // Add it to the test step
-            tests_step.dependOn(&b.addInstallArtifact(test_exe, .{}).step);
+                test_query.platform,
+            ).step);
         }
     }
 
@@ -198,17 +242,18 @@ pub fn build(b: *Build) !void {
     const example_fetch_deps = b.addSystemCommand(&.{ "zig", "fetch", "--save" });
     example_fetch_deps.setCwd(b.path("example/"));
     example_fetch_deps.addArg("../");
-    const example_cleanup = b.addRemoveDirTree(b.path("example/zig-out/"));
+    const example_step = b.step("example", "Build the example");
+
+    var example_check_depend: *Build.Step = example_step;
     for (test_queries) |test_query| {
         const example_check = b.addSystemCommand(&.{ "zig", "build" });
         example_check.addArg(b.fmt("-Dtarget={s}", .{test_query.target}));
         example_check.addArg(b.fmt("-Dcpu={s}", .{test_query.cpu}));
         example_check.setCwd(b.path("example/"));
         example_check.step.dependOn(&example_fetch_deps.step);
-        example_cleanup.step.dependOn(&example_check.step);
+        example_check_depend.dependOn(&example_check.step);
+        example_check_depend = &example_check.step;
     }
-    const example_step = b.step("example", "Build the example");
-    example_step.dependOn(&example_cleanup.step);
 
     // Create readme generator step
     const readme_run = b.addRunArtifact(readme_exe);

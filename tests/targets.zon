@@ -1,6 +1,6 @@
 .{
     .{
-        .platform = "scripts/platforms/cortex_m4.repl",
+        .platform = "platforms/cortex_m4.repl",
         .target = "thumb-freestanding-eabi",
         .cpu = "cortex_m4",
     },

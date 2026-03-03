@@ -9,6 +9,8 @@
     - [Accessing the Docs](#accessing-the-docs)
   - [Choosing a Target Triple](#choosing-a-target-triple)
 - [Testing the HAL](#testing-the-hal)
+  - [Dependencies](#dependencies)
+  - [Running Tests](#running-tests)
 - [Other Build Steps](#other-build-steps)
   - [Generating the Documentation](#generating-the-documentation)
   - [Generating README.md](#generating-readmemd)
@@ -16,10 +18,12 @@
   - [Checking Formatting](#checking-formatting)
   - [Testing the Example](#testing-the-example)
 
+---
 ## Purpose
 - This library is meant to help write bare metal code for *ARM Cortex-M* cpus and
   possibly other ARM cpus in the future.
 
+---
 ## How to Use
 ### Adding to Your Project
 #### Fetching the Dependency
@@ -98,6 +102,7 @@ pub fn build(b: *std.Build) void {
 Here are the dependency options:
 ```zig
 omit_frame_pointer: bool, // Omit frame pointer setup (default: false)
+test_case_timeout: f32, // How many seconds to let a test case run (default: 5.0)
 ```
 #### Using the Linker Script Generator
 Here's the options for the linker script generator
@@ -131,13 +136,22 @@ zig build -Dtarget=<your target here> -Dcpu=
 ```
 It will list supported cpu models that can then be use for `-Dcpu` when compiling.
 
+---
 ## Testing the HAL
-Test case executables are generated currently, but work still needs to be done to verify their
-correctness with renode. For now *tests can be built with*:
+### Dependencies
+To run the tests (building them doesn't require this step), you must first install
+renode along with renode-test. Renode installation instructions can be found
+at their [GitHub](https://github.com/renode/renode/blob/master/README.md#installation).
+
+### Running Tests
+Tests can be built and run with the following command:
 ```bash
 zig build tests
 ```
+Renode with the Robot Framework will automatically run after the tests are built
+and output the test results to stdout.
 
+---
 ## Other Build Steps
 ### Generating the Documentation
 To generate the docs run this in the "za" working directory:

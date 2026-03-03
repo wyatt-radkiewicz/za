@@ -181,11 +181,12 @@ pub fn build(b: *Build) !void {
     const tests_step = b.step("tests", "Run tests (check README.md)");
 
     // Build each test as seperate executable
+    var tests_depend_step = tests_step;
     for (test_queries) |test_query| {
         const test_target = test_query.resolvedTarget(b);
         for (test_suites) |test_suite| {
             // Build the test and run it
-            tests_step.dependOn(&buildAndRunSuite(
+            const test_run = buildAndRunSuite(
                 b,
                 test_suite,
                 test_target,
@@ -194,7 +195,9 @@ pub fn build(b: *Build) !void {
                 za_mod,
                 linker_exe,
                 test_query.platform,
-            ).step);
+            );
+            tests_depend_step.dependOn(&test_run.step);
+            tests_depend_step = &test_run.step;
         }
     }
 

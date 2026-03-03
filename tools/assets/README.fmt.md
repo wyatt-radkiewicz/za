@@ -14,6 +14,7 @@
   - [Generating README.md](#generating-readmemd)
   - [Cleaning Up](#cleaning-up)
   - [Checking Formatting](#checking-formatting)
+  - [Testing the Example](#testing-the-example)
 
 ## Purpose
 - This library is meant to help write bare metal code for *ARM Cortex-M* cpus and
@@ -68,7 +69,7 @@ It will list supported cpu models that can then be use for `-Dcpu` when compilin
 Test case executables are generated currently, but work still needs to be done to verify their
 correctness with renode. For now *tests can be built with*:
 ```bash
-zig build tests -Dtarget=<your target triple here> -Dcpu=<your target cpu here>
+zig build tests
 ```
 
 ## Other Build Steps
@@ -95,4 +96,9 @@ zig build clean
 This will only check the formatting of files in the project (not correct them):
 ```bash
 zig build fmt
+```
+### Testing the Example
+To build the example and make sure it works on the supported targets, run:
+```bash
+zig build example
 ```

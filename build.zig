@@ -4,6 +4,23 @@ pub const Linker = @import("tools/Linker.zig");
 const Options = @import("tools/Options.zig");
 const Build = std.Build;
 const test_suites: []const []const u8 = @import("tests/suites.zon");
+const test_queries: []const TestTarget = @import("tests/targets.zon");
+
+/// Testing targets
+const TestTarget = struct {
+    platform: []const u8,
+    target: []const u8,
+    cpu: []const u8,
+
+    /// Gets a resolved target from this test target
+    fn resolvedTarget(this: @This(), b: *Build) std.Build.ResolvedTarget {
+        const query = std.Target.Query.parse(.{
+            .arch_os_abi = this.target,
+            .cpu_features = this.cpu,
+        }) catch @panic("Invalid test target query string!");
+        return b.resolveTargetQuery(query);
+    }
+};
 
 /// Build the test case
 fn buildSuite(
@@ -35,8 +52,14 @@ fn buildSuite(
     });
 
     // Build the test module and executable
+    const target_triple = target.result.zigTriple(b.allocator) catch @panic("OOM");
+    const test_name = b.fmt("test-{s}-{s}-{s}", .{
+        suite,
+        target_triple,
+        target.result.cpu.model.name,
+    });
     const test_exe = b.addExecutable(.{
-        .name = b.fmt("test-{s}", .{std.fs.path.stem(suite)}),
+        .name = test_name,
         .root_module = test_mod,
     });
     const linker_run = b.addRunArtifact(linker_exe);
@@ -45,7 +68,7 @@ fn buildSuite(
             .code_section = .code,
             .data_section = .sram,
         },
-        .output = b.fmt("test-{s}.ld", .{std.fs.path.stem(suite)}),
+        .output = b.fmt("{s}.ld", .{test_name}),
     }, linker_run));
     return test_exe;
 }
@@ -108,16 +131,27 @@ pub fn build(b: *Build) !void {
     // Linker script generator
     const linker_exe = linker_script.init(b, native_target, .ReleaseSafe);
 
-    // Add tests step
+    // Add tests step and get the test targets
     const tests_step = b.step("tests", "Run tests (check README.md)");
 
     // Build each test as seperate executable
-    for (test_suites) |test_suite| {
-        // Build the test
-        const test_exe = buildSuite(b, test_suite, target, optimize, options, za_mod, linker_exe);
+    for (test_queries) |test_query| {
+        const test_target = test_query.resolvedTarget(b);
+        for (test_suites) |test_suite| {
+            // Build the test
+            const test_exe = buildSuite(
+                b,
+                test_suite,
+                test_target,
+                .Debug,
+                options,
+                za_mod,
+                linker_exe,
+            );
 
-        // Add it to the test step
-        tests_step.dependOn(&b.addInstallArtifact(test_exe, .{}).step);
+            // Add it to the test step
+            tests_step.dependOn(&b.addInstallArtifact(test_exe, .{}).step);
+        }
     }
 
     // Add cleanup step
@@ -164,11 +198,15 @@ pub fn build(b: *Build) !void {
     const example_fetch_deps = b.addSystemCommand(&.{ "zig", "fetch", "--save" });
     example_fetch_deps.setCwd(b.path("example/"));
     example_fetch_deps.addArg("../");
-    const example_check = b.addSystemCommand(&.{ "zig", "build", "-Dtarget=thumbeb-freestanding-eabi" });
-    example_check.step.dependOn(&example_fetch_deps.step);
-    example_check.setCwd(b.path("example/"));
     const example_cleanup = b.addRemoveDirTree(b.path("example/zig-out/"));
-    example_cleanup.step.dependOn(&example_check.step);
+    for (test_queries) |test_query| {
+        const example_check = b.addSystemCommand(&.{ "zig", "build" });
+        example_check.addArg(b.fmt("-Dtarget={s}", .{test_query.target}));
+        example_check.addArg(b.fmt("-Dcpu={s}", .{test_query.cpu}));
+        example_check.setCwd(b.path("example/"));
+        example_check.step.dependOn(&example_fetch_deps.step);
+        example_cleanup.step.dependOn(&example_check.step);
+    }
     const example_step = b.step("example", "Build the example");
     example_step.dependOn(&example_cleanup.step);
 
@@ -183,6 +221,6 @@ pub fn build(b: *Build) !void {
     // Throw error if target does not match one of the supported targets
     if (!target.result.cpu.hasAny(.arm, &.{ .has_v6, .has_v7 })) {
         const fail = b.addFail("Unsupported target! Use cpu model with armv6 or armv7!");
-        tests_step.dependOn(&fail.step);
+        b.getInstallStep().dependOn(&fail.step);
     }
 }

@@ -6,7 +6,7 @@
     .dependencies = .{
         .za = .{
             .url = "../",
-            .hash = "za-0.0.0-OZCnhjfbAACpdeKoxXC9JIt9I_V-BTAvSUfxzSTuMqws",
+            .hash = "za-0.0.0-OZCnhtjgAAAe5SKUugEaS9Rdi-8Azy2SJmbiQnpcZtfS",
         },
     },
     .paths = .{
